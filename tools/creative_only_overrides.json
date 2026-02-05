@@ -1,0 +1,13 @@
+{
+  "bedrock": true,
+  "barrier": true,
+  "command_block": true,
+  "repeating_command_block": true,
+  "chain_command_block": true,
+  "structure_block": true,
+  "jigsaw": true,
+  "structure_void": true,
+  "light": true,
+  "end_portal": true,
+  "nether_portal": true
+}

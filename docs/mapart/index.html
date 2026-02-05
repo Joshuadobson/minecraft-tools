@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <a href="map-art/">Map Art Generator</a>
+  <title>Minecraft Map Art Converter (128×128)</title>
+
+  <link rel="stylesheet" href="mapart.css" />
+  <link rel="stylesheet" href="libs/cropper.min.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🗺️</div>
+      <div>
+        <div class="title">Map Art Converter</div>
+        <div class="subtitle">Upload → crop → 128×128 → block counts</div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <strong>Disclaimer:</strong> Minecraft maps can differ from this preview because in-game maps apply shading based on height (Y-axis) and other rendering rules.
+      This tool matches colours to block textures as a best-effort guide.
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <h2>1) Upload & Crop</h2>
+
+      <div class="row">
+        <label class="fileBtn">
+          <input id="fileInput" type="file" accept="image/*" />
+          Choose image
+        </label>
+
+        <button id="resetBtn" class="btn secondary" disabled>Reset crop</button>
+      </div>
+
+      <div class="cropArea">
+        <div class="cropHint" id="cropHint">Upload an image to start.</div>
+        <img id="sourceImg" alt="Source" />
+      </div>
+
+      <div class="controls">
+        <div class="control">
+          <label for="sizeSel">Output size</label>
+          <label class="check">
+            <input type="checkbox" id="smoothInput" checked />
+            Smooth input (recommended)
+          </label>
+          <select id="sizeSel">
+            <option value="128" selected>128 × 128 (map)</option>
+            <option value="256">256 × 256</option>
+            <option value="64">64 × 64</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="paletteSel">Palette</label>
+          <select id="paletteSel">
+            <option value="full_solid" selected>Full blocks only (recommended)</option>
+            <option value="all_solid">All solid blocks (incl. noisy)</option>
+            <option value="everything">Everything (not recommended)</option>
+          </select>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="includeCreative" />
+          Include creative-only blocks
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="texturePreview" />
+          Texture preview (slower)
+        </label>
+
+        <button id="generateBtn" class="btn" disabled>Generate</button>
+      </div>
+
+      <div class="status" id="status">Loading blocks…</div>
+    </section>
+
+    <section class="panel">
+      <h2>2) Output</h2>
+
+      <div class="outGrid">
+        <div class="outCard previewCard">
+          <div class="outTitle">Preview</div>
+
+          <div class="zoomWrap">
+            <canvas id="outCanvas" width="128" height="128"></canvas>
+          </div>
+
+          <div class="countsMeta" id="countsMeta">—</div>
+
+          <div class="row">
+            <button id="downloadBtn" class="btn secondary" disabled>Download PNG</button>
+            <button id="downloadCountsJson" class="btn secondary" disabled>Counts JSON</button>
+            <button id="downloadCountsCsv" class="btn secondary" disabled>Counts CSV</button>
+
+            <button id="zoomOutBtn" class="btn secondary" type="button">−</button>
+            <button id="zoomInBtn" class="btn secondary" type="button">+</button>
+            <button id="zoomResetBtn" class="btn secondary" type="button">Reset view</button>
+          </div>
+        </div>
+
+        <div class="outCard">
+          <div class="outTitle">Block counts</div>
+          <div class="countsTable" id="countsTable">
+            <div class="muted">Generate an output to see counts.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="libs/cropper.min.js"></script>
+  <script src="mapart.js"></script>
+</body>
+</html>

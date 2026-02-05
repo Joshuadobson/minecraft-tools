@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Node / tooling (if added later)
+node_modules/
+
+# Large raw assets
+minecraft_textures/
+minecraft_textures_source/
+
+# Virtual envs
+.venv/
+

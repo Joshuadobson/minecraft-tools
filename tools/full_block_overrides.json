@@ -1,0 +1,149 @@
+{
+
+
+  "conduit": false,
+  "beacon": false,
+  "brewing_stand": false,
+  "anvil": false,
+  "bell": false,
+  "campfire": false,
+  "soul_campfire": false,
+  "end_rod": false,
+  "ladder": false,
+  "lever": false,
+  "tripwire": false,
+  "tripwire_hook": false,
+  "flower_pot": false,
+  "comparator": false,
+    "dropper": false,
+    "repeater": false,
+    
+
+
+
+  "rail": false,
+  "powered_rail": false,
+  "detector_rail": false,
+  "activator_rail": false,
+  "redstone_torch": false,
+
+
+  "lantern": false,
+  "soul_lantern": false,
+  "torch": false,
+  "soul_torch": false,
+
+
+  "chain": false,
+  "iron_chain": false,
+  "copper_chain": false,
+  "exposed_copper_chain": false,
+  "oxidized_copper_chain": false,
+  "weathered_copper_chain": false,
+  "lightning_rod": false,
+  "exposed_lightning_rod": false,
+  "oxidized_lightning_rod": false,
+  "weathered_lightning_rod": false,
+
+
+  "oak_trapdoor": false,
+  "spruce_trapdoor": false,
+  "birch_trapdoor": false,
+  "jungle_trapdoor": false,
+  "acacia_trapdoor": false,
+  "dark_oak_trapdoor": false,
+  "mangrove_trapdoor": false,
+  "cherry_trapdoor": false,
+  "bamboo_trapdoor": false,
+  "warped_trapdoor": false,
+  "crimson_trapdoor": false,
+
+
+  "allium": false,
+  "azure_bluet": false,
+  "blue_orchid": false,
+  "cornflower": false,
+  "dandelion": false,
+  "lily_of_the_valley": false,
+  "poppy": false,
+  "oxeye_daisy": false,
+  "tulip": false,
+  "wither_rose": false,
+  "torchflower": false,
+  "sapling": false,
+  "vine": false,
+  "weeping_vines": false,
+  "twisting_vines": false,
+  "kelp": false,
+  "seagrass": false,
+  "sugar_cane": false,
+  "cave_vines": false,
+  "spore_blossom": false,
+  "pink_petals": false,
+
+
+  "brain_coral": false,
+  "brain_coral_fan": false,
+  "bubble_coral": false,
+  "bubble_coral_fan": false,
+  "fire_coral": false,
+  "fire_coral_fan": false,
+  "horn_coral": false,
+  "horn_coral_fan": false,
+  "tube_coral": false,
+  "tube_coral_fan": false,
+
+
+
+  "candle": false,
+  "white_candle": false,
+  "orange_candle": false,
+  "magenta_candle": false,
+  "light_blue_candle": false,
+  "yellow_candle": false,
+  "lime_candle": false,
+  "pink_candle": false,
+  "gray_candle": false,
+  "light_gray_candle": false,
+  "cyan_candle": false,
+  "purple_candle": false,
+  "blue_candle": false,
+  "brown_candle": false,
+  "green_candle": false,
+  "red_candle": false,
+  "black_candle": false,
+
+
+
+  "bedrock": true,
+  "moss_block": true,
+  "pale_moss_block": true,
+  "mossy_cobblestone": true,
+  "mossy_stone_bricks": true,
+  "sea_lantern": true,
+  "jack_o_lantern": true,
+
+  "brown_mushroom": false,
+  "red_mushroom": false,
+  "sea_pickle": false,
+  "small_amethyst_bud": false,
+  "medium_amethyst_bud": false,
+  "large_amethyst_bud": false,
+  "turtle_egg": false,
+  "glow_lichen": false,
+  "resin_clump": false,
+  "leaf_litter": false,
+  "frogspawn": false,
+  "attached_pumpkin_stem": false,
+  "attached_melon_stem": false,
+    "pumpkin_stem": false,
+    "melon_stem": false,
+    "big_dripleaf": false,
+
+
+  "big_dripleaf_stem": false,
+
+  "brown_mushroom_block": true,
+  "red_mushroom_block": true,
+  "mushroom_stem": true
+}

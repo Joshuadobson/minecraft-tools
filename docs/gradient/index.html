@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Minecraft Palette Bridge</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="wrap header">
+    <div>
+      <h1>Minecraft Palette Bridge</h1>
+      <p class="sub">Pick two blocks. Generate a smooth set of transitional blocks by colour.</p>
+    </div>
+    <div class="pill" id="countPill">Loading…</div>
+  </header>
+
+  <main class="wrap grid">
+    <!-- Controls -->
+    <section class="card controls">
+      <div class="sectionTitle">
+        <h2>Controls</h2>
+        <div class="hint">All blocks are selectable — modes only change preference.</div>
+      </div>
+
+      <div class="twoCols">
+        <div class="picker">
+          <div class="pickerTop">
+            <div class="pickerLabel">Block A</div>
+            <div class="mini" id="aId"></div>
+          </div>
+          <div class="pickerBody">
+            <img class="preview" id="aImg" alt="" />
+            <div class="pickerInputs">
+              <div class="inputWrap pickerDropdown" data-which="a">
+                <div class="emptyIcon" id="aEmpty"></div>
+                <input id="blockA" placeholder="Search blocks…" autocomplete="off"/>
+                <button type="button" class="clearBtn" id="clearA">×</button>
+                <div class="dropdown" id="dropdownA"></div>
+                </div>
+              <div class="name" id="aName">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="picker">
+          <div class="pickerTop">
+            <div class="pickerLabel">Block B</div>
+            <div class="mini" id="bId"></div>
+          </div>
+          <div class="pickerBody">
+            <img class="preview" id="bImg" alt="" />
+            <div class="pickerInputs">
+              <div class="inputWrap pickerDropdown" data-which="b">
+                <div class="emptyIcon" id="bEmpty"></div>
+                <input id="blockB" placeholder="Search blocks…" autocomplete="off"/>
+                <button type="button" class="clearBtn" id="clearB">×</button>
+                <div class="dropdown" id="dropdownB"></div>
+                </div>
+              <div class="name" id="bName">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <datalist id="blocksList"></datalist>
+
+      <div class="row">
+        <div class="field grow">
+          <label for="mode">Mode</label>
+          <select id="mode">
+            <option value="smooth" selected>Smooth build (recommended)</option>
+            <option value="anything">Anything goes</option>
+            <option value="creative">Creative-friendly (allow creative-only)</option>
+          </select>
+          <select id="orientation">
+            <option value="side" selected>Side (walls)</option>
+            <option value="top">Top (floors)</option>
+            <option value="bottom">Bottom (ceilings)</option>
+            <option value="avg">Average</option>
+          </select>
+        </div>
+
+        <div class="field grow">
+          <label for="nTransitions">Transitions: <span id="nLabel">8</span></label>
+          <input id="nTransitions" type="range" min="2" max="12" value="8" />
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="check">
+          <input id="avoidDupes" type="checkbox" checked />
+          Avoid duplicates
+        </label>
+
+        <label class="check">
+          <input id="preferBuilding" type="checkbox" checked />
+          Prefer building blocks
+        </label>
+
+        <label class="check">
+          <input id="fullBlocksOnly" type="checkbox" checked />
+          Full blocks only
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="swapBtn" type="button">Swap A ↔ B</button>
+        <button id="randomBtn" type="button">Random pair</button>
+      </div>
+
+      <div id="status" class="status">Loading blocks…</div>
+    </section>
+
+    <!-- Results -->
+    <section class="card results">
+      <div class="sectionTitle">
+        <h2>Result</h2>
+        <div class="hint" id="resultHint">—</div>
+      </div>
+      <div id="strip" class="strip"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    Tip: concretes/terracotta are best for smooth gradients. Wood/stone works well too.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
