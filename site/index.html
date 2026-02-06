@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minecraft Building Tools</title>
+  <meta name="description" content="Clean, fast Minecraft building tools: a block gradient palette generator and a map art converter with block counts." />
+  <style>
+    :root{
+      --bg:#f5f5f7;
+      --card:#ffffff;
+      --text:#111114;
+      --muted:#5b5b66;
+      --border:rgba(0,0,0,.10);
+      --shadow:0 18px 40px rgba(0,0,0,.10);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(900px 600px at 20% 0%, rgba(0,122,255,.08), transparent),
+                  radial-gradient(900px 600px at 80% 20%, rgba(175,82,222,.08), transparent),
+                  var(--bg);
+      color:var(--text);
+    }
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:36px 18px 60px;
+    }
+    .top{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:22px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      background:rgba(0,0,0,.06);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:var(--shadow);
+    }
+    h1{margin:0;font-size:28px;letter-spacing:-.02em}
+    .sub{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.4}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:10px 12px;border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.7);
+      color:var(--muted);
+      font-size:13px;
+      backdrop-filter: blur(8px);
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:14px;
+      margin-top:18px;
+    }
+    @media (min-width:900px){
+      .grid{grid-template-columns:1fr 1fr}
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      min-height:220px;
+    }
+    .cardTop{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .badge{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      color:var(--muted);
+      background:rgba(0,0,0,.03);
+      white-space:nowrap;
+    }
+    .card h2{
+      margin:0;
+      font-size:18px;
+      letter-spacing:-.01em;
+    }
+    .card p{
+      margin:0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.45;
+    }
+    .actions{
+      margin-top:auto;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    a.btn{
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.04);
+      color:var(--text);
+      font-weight:700;
+      font-size:14px;
+    }
+    a.btn.primary{
+      background:#007AFF;
+      border-color:#007AFF;
+      color:white;
+    }
+    .footer{
+      margin-top:22px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+    }
+    .footer a{color:inherit}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <div class="logo">🧱</div>
+        <div>
+          <h1>Minecraft Building Tools</h1>
+          <div class="sub">Clean, fast tools for builders: gradients and map art.</div>
+        </div>
+      </div>
+      <div class="pill">Made for quick builds • No sign-in</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="cardTop">
+          <div>
+            <h2>Block Gradient Generator</h2>
+            <p>Pick two blocks and generate a smooth transition palette using curated textures.</p>
+          </div>
+          <div class="badge">Builder tool</div>
+        </div>
+        <div class="actions">
+          <a class="btn primary" href="gradient/">Open Gradient Tool →</a>
+          <a class="btn" href="gradient/">Try example</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardTop">
+          <div>
+            <h2>Map Art Generator</h2>
+            <p>Upload an image, crop to square, generate a map-ready design and block counts.</p>
+          </div>
+          <div class="badge">128×128 maps</div>
+        </div>
+        <div class="actions">
+          <a class="btn primary" href="map-art/">Open Map Art Tool →</a>
+          <a class="btn" href="map-art/">Try example</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div><strong>Tip:</strong> Bookmark this page — more tools coming soon.</div>
+      <div>Disclaimer: in-game maps may differ due to shading/height and rendering rules.</div>
+    </div>
+  </div>
+</body>
+</html>

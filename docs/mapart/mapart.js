@@ -66,6 +66,12 @@ const VIEW_MIN = 0.25;
 const VIEW_MAX = 8;
 const VIEW_STEP = 1.25;
 
+const DATA_URL = "../data/blocks.json";
+const TOP_TEX_DIR = "../textures_top";
+const url = `${TOP_TEX_DIR}/${id}.png`;
+
+const res = await fetch(`${TOP_TEX_DIR}/${id}.png`, { method: "HEAD", cache: "no-store" });
+
 const elSmooth = () => document.getElementById("smoothInput");
 
 function getBlurredCanvas(srcCanvas, radius = 0.8){
