@@ -81,6 +81,31 @@ body {
   margin-top: 1px;
 }
 
+.topbar-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.kofi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: #ff5e5b;
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity .15s, transform .08s;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(255,94,91,.35);
+}
+.kofi-btn:hover { opacity: .88; }
+.kofi-btn:active { transform: translateY(1px); }
+
 .disclaimer {
   max-width: 440px;
   font-size: 12px;
