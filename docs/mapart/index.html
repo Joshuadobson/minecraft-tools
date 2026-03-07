@@ -3,7 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Minecraft Map Art Converter</title>
+
+  <!-- ── Primary SEO ── -->
+  <title>Minecraft Map Art Generator — Convert Any Image to 128×128 Block Maps</title>
+  <meta name="description" content="Free online Minecraft map art generator. Upload any image and instantly convert it to a 128×128 block map with accurate colour matching, Floyd-Steinberg dithering, and multi-map grid export. No install required." />
+  <meta name="keywords" content="minecraft map art, minecraft map art generator, image to minecraft blocks, minecraft pixel art, map art converter, 128x128 minecraft map" />
+  <meta name="author" content="Joshua Dobson" />
+  <link rel="canonical" href="https://joshuadobson.github.io/minecraft-tools/mapart/" />
+
+  <!-- ── Open Graph (Discord, Reddit, Facebook) ── -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://joshuadobson.github.io/minecraft-tools/mapart/" />
+  <meta property="og:title"       content="Minecraft Map Art Generator — Convert Any Image to Block Maps" />
+  <meta property="og:description" content="Upload any image and convert it to a Minecraft map art layout. Accurate colour matching, dithering, multi-map grid export, and full block counts. Free to use." />
+  <meta property="og:image"       content="https://joshuadobson.github.io/minecraft-tools/mapart/og-image.png" />
+
+  <!-- ── Twitter / X card ── -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="Minecraft Map Art Generator" />
+  <meta name="twitter:description" content="Convert any image to a 128×128 Minecraft map art layout. Free, instant, no install." />
+  <meta name="twitter:image"       content="https://joshuadobson.github.io/minecraft-tools/mapart/og-image.png" />
+
+  <!-- ── Structured data (helps Google understand the tool) ── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Minecraft Map Art Generator",
+    "url": "https://joshuadobson.github.io/minecraft-tools/mapart/",
+    "description": "Convert any image into a Minecraft map art layout. Supports 128x128 single maps and multi-map grids up to 4x4. Includes Floyd-Steinberg dithering, block counts, and ZIP export.",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
+    "author": { "@type": "Person", "name": "Joshua Dobson" }
+  }
+  </script>
+
   <link rel="stylesheet" href="mapart.css" />
   <link rel="stylesheet" href="libs/cropper.min.css" />
 </head>
@@ -177,5 +212,17 @@
   <script src="libs/cropper.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="mapart.js"></script>
+
+  <!-- ── Crawlable content for Google (visually hidden) ── -->
+  <section class="seo-content" aria-hidden="true">
+    <h1>Minecraft Map Art Generator</h1>
+    <p>Convert any image into a Minecraft map art layout using accurate perceptual colour matching. Upload a photo or design, crop it to a square, and the tool instantly maps every pixel to the closest available Minecraft block colour.</p>
+    <h2>Features</h2>
+    <p>Supports 128×128 single map output — the standard size for one Minecraft map item. Multi-map grid export lets you split a large image across a 2×2, 3×3, or 4×4 grid of maps for large-scale builds. Floyd-Steinberg dithering improves colour accuracy in gradients and complex images. Download your result as a PNG, or export block counts as CSV or JSON to plan your materials.</p>
+    <h2>How it works</h2>
+    <p>The tool uses CIELAB colour space matching to find the closest Minecraft block for each pixel — more accurate than simple RGB comparison. All processing happens in your browser, no data is uploaded to any server.</p>
+    <h2>Free to use</h2>
+    <p>This Minecraft map art converter is completely free. If you find it useful, consider supporting development on Ko-fi.</p>
+  </section>
 </body>
 </html>
