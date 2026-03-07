@@ -3,118 +3,131 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <a href="map-art/">Map Art Generator</a>
-  <title>Minecraft Map Art Converter (128×128)</title>
-
+  <title>Minecraft Map Art Converter</title>
   <link rel="stylesheet" href="mapart.css" />
   <link rel="stylesheet" href="libs/cropper.min.css" />
 </head>
-
 <body>
+
   <header class="topbar">
     <div class="brand">
-      <div class="logo">🗺️</div>
-      <div>
-        <div class="title">Map Art Converter</div>
-        <div class="subtitle">Upload → crop → 128×128 → block counts</div>
+      <div class="logo-mark">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="0"  y="0"  width="10" height="10" rx="2" fill="#4ade80"/>
+          <rect x="12" y="0"  width="10" height="10" rx="2" fill="#60a5fa"/>
+          <rect x="0"  y="12" width="10" height="10" rx="2" fill="#f97316"/>
+          <rect x="12" y="12" width="10" height="10" rx="2" fill="#e879f9"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">MapArt</span>
+        <span class="brand-tag">Minecraft Map Converter</span>
       </div>
     </div>
 
-    <div class="disclaimer">
-      <strong>Disclaimer:</strong> Minecraft maps can differ from this preview because in-game maps apply shading based on height (Y-axis) and other rendering rules.
-      This tool matches colours to block textures as a best-effort guide.
-    </div>
+    <p class="disclaimer">
+      <strong>Note:</strong> In-game maps apply height-based shading. This tool matches colours as a best-effort guide.
+    </p>
   </header>
 
-  <main class="wrap">
-    <section class="panel">
-      <h2>1) Upload & Crop</h2>
+  <main class="layout">
 
-      <div class="row">
-        <label class="fileBtn">
+    <!-- ── Left column: upload + crop ── -->
+    <section class="card" id="card-crop">
+      <h2 class="card-title"><span class="step">1</span> Upload &amp; Crop</h2>
+
+      <div class="row gap-8">
+        <label class="file-btn">
           <input id="fileInput" type="file" accept="image/*" />
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
           Choose image
         </label>
-
-        <button id="resetBtn" class="btn secondary" disabled>Reset crop</button>
+        <button id="resetCropBtn" class="btn secondary" disabled>Reset crop</button>
       </div>
 
-      <div class="cropArea">
-        <div class="cropHint" id="cropHint">Upload an image to start.</div>
-        <img id="sourceImg" alt="Source" />
+      <div class="crop-area">
+        <div class="crop-hint" id="cropHint">Upload an image to begin.</div>
+        <img id="sourceImg" alt="Source image" />
       </div>
 
+      <!-- Controls -->
       <div class="controls">
-        <div class="control">
-          <label for="sizeSel">Output size</label>
-          <label class="check">
-            <input type="checkbox" id="smoothInput" checked />
-            Smooth input (recommended)
-          </label>
-          <select id="sizeSel">
-            <option value="128" selected>128 × 128 (map)</option>
-            <option value="256">256 × 256</option>
-            <option value="64">64 × 64</option>
+        <div class="field">
+          <label for="sizeSelect">Output size</label>
+          <select id="sizeSelect">
+            <option value="128" selected>128 × 128 (1 map)</option>
+            <option value="256">256 × 256 (4 maps)</option>
+            <option value="64">64 × 64 (preview)</option>
           </select>
         </div>
 
-        <div class="control">
-          <label for="paletteSel">Palette</label>
-          <select id="paletteSel">
+        <div class="field">
+          <label for="paletteSelect">Block palette</label>
+          <select id="paletteSelect">
             <option value="full_solid" selected>Full blocks only (recommended)</option>
             <option value="all_solid">All solid blocks (incl. noisy)</option>
             <option value="everything">Everything (not recommended)</option>
           </select>
         </div>
 
-        <label class="check">
-          <input type="checkbox" id="includeCreative" />
-          Include creative-only blocks
-        </label>
-
-        <label class="check">
-          <input type="checkbox" id="texturePreview" />
-          Texture preview (slower)
-        </label>
-
-        <button id="generateBtn" class="btn" disabled>Generate</button>
-      </div>
-
-      <div class="status" id="status">Loading blocks…</div>
-    </section>
-
-    <section class="panel">
-      <h2>2) Output</h2>
-
-      <div class="outGrid">
-        <div class="outCard previewCard">
-          <div class="outTitle">Preview</div>
-
-          <div class="zoomWrap">
-            <canvas id="outCanvas" width="128" height="128"></canvas>
-          </div>
-
-          <div class="countsMeta" id="countsMeta">—</div>
-
-          <div class="row">
-            <button id="downloadBtn" class="btn secondary" disabled>Download PNG</button>
-            <button id="downloadCountsJson" class="btn secondary" disabled>Counts JSON</button>
-            <button id="downloadCountsCsv" class="btn secondary" disabled>Counts CSV</button>
-
-            <button id="zoomOutBtn" class="btn secondary" type="button">−</button>
-            <button id="zoomInBtn" class="btn secondary" type="button">+</button>
-            <button id="zoomResetBtn" class="btn secondary" type="button">Reset view</button>
-          </div>
+        <div class="toggles">
+          <label class="toggle">
+            <input type="checkbox" id="includeCreative" />
+            <span>Creative-only blocks</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="enableDither" checked />
+            <span>Floyd-Steinberg dithering</span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="smoothInput" checked />
+            <span>Smooth input</span>
+          </label>
         </div>
 
-        <div class="outCard">
-          <div class="outTitle">Block counts</div>
-          <div class="countsTable" id="countsTable">
-            <div class="muted">Generate an output to see counts.</div>
-          </div>
+        <button id="generateBtn" class="btn primary wide" disabled>Generate</button>
+      </div>
+
+      <div class="status-bar">
+        <span id="statusMsg">Loading blocks…</span>
+        <div id="progressWrap" class="progress-wrap" style="opacity:0">
+          <div id="progressBar" class="progress-bar" style="width:0%"></div>
         </div>
       </div>
     </section>
+
+    <!-- ── Right column: output ── -->
+    <section class="card" id="card-output">
+      <h2 class="card-title"><span class="step">2</span> Output</h2>
+
+      <div class="preview-area">
+        <div class="zoom-wrap">
+          <canvas id="outCanvas" width="128" height="128"></canvas>
+        </div>
+
+        <div id="countsMeta" class="counts-meta">—</div>
+
+        <div class="row gap-8 flex-wrap">
+          <button id="downloadPng"  class="btn secondary" disabled>↓ PNG</button>
+          <button id="downloadJson" class="btn secondary" disabled>↓ JSON</button>
+          <button id="downloadCsv"  class="btn secondary" disabled>↓ CSV</button>
+          <span class="spacer"></span>
+          <button id="zoomOut"   class="btn icon secondary" title="Zoom out">−</button>
+          <button id="zoomIn"    class="btn icon secondary" title="Zoom in">+</button>
+          <button id="zoomReset" class="btn secondary" title="Reset zoom">Fit</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="counts-section">
+        <h3 class="counts-title">Block counts</h3>
+        <div id="countsTable" class="counts-table">
+          <p class="empty">Generate an output to see counts.</p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <script src="libs/cropper.min.js"></script>
