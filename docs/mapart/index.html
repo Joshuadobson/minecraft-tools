@@ -136,7 +136,46 @@
 
   </main>
 
+  <!-- ── Multi-map section ── -->
+  <div class="multimap-wrap">
+    <section class="card multimap-card">
+
+      <div class="multimap-header">
+        <div>
+          <h2 class="card-title" style="margin-bottom:4px"><span class="step">3</span> Multi-Map Grid</h2>
+          <p class="multimap-desc">Split your image across a grid of maps — perfect for large builds. Each segment downloads as a separate 128×128 PNG.</p>
+        </div>
+        <div class="kofi-nudge">
+          <span>❤️ Free to use — if it helps you, consider a</span>
+          <a href="https://ko-fi.com/joshuadobson" target="_blank" rel="noopener">Ko-fi donation</a>
+        </div>
+      </div>
+
+      <div class="multimap-controls">
+        <div class="field">
+          <label for="gridSelect">Grid size</label>
+          <select id="gridSelect">
+            <option value="2">2 × 2 (4 maps)</option>
+            <option value="3">3 × 3 (9 maps)</option>
+            <option value="4">4 × 4 (16 maps)</option>
+          </select>
+        </div>
+
+        <button id="gridGenerateBtn" class="btn primary" disabled>Generate Grid</button>
+        <button id="gridDownloadBtn" class="btn secondary" disabled>↓ Download ZIP</button>
+      </div>
+
+      <div class="grid-status-bar">
+        <span id="gridStatus">Upload an image and generate a single map first.</span>
+      </div>
+
+      <div id="gridPreview" class="grid-preview"></div>
+
+    </section>
+  </div>
+
   <script src="libs/cropper.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="mapart.js"></script>
 </body>
 </html>
