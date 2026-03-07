@@ -362,21 +362,18 @@ select option { background: var(--surface2); }
 .preview-area {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .zoom-wrap {
   width: 100%;
-  aspect-ratio: 1 / 1;
-  overflow: auto;
+  height: 340px;
+  overflow: hidden;
   border-radius: var(--radius);
   border: 1px solid var(--border2);
   background: #111;
   cursor: grab;
   position: relative;
-  /* Hide scrollbar but keep scroll functionality */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.1) transparent;
 }
 .zoom-wrap:active { cursor: grabbing; }
 
@@ -384,6 +381,10 @@ select option { background: var(--surface2); }
   display: block;
   image-rendering: pixelated;
   transform-origin: 0 0;
+  /* canvas is positioned absolutely so transform scale doesn't push layout */
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .counts-meta {
@@ -581,3 +582,16 @@ select option { background: var(--surface2); }
 .cropper-line  { background-color: var(--accent) !important; }
 .cropper-point { background-color: var(--accent) !important; width: 8px !important; height: 8px !important; border-radius: 2px !important; }
 .cropper-modal { background: rgba(0,0,0,.6); }
+
+/* ── SEO content (visible to crawlers, hidden visually) ─────────────────── */
+.seo-content {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
