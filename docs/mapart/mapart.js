@@ -21,6 +21,9 @@ let CURRENT_BLOB  = null;
 
 const TEX_CACHE   = new Map(); // id → HTMLImageElement | null
 
+// ─── Multi-map state ──────────────────────────────────────────────────────────
+let IS_GRID_GENERATING = false;
+
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const elFile          = $("fileInput");
@@ -47,6 +50,13 @@ const elZoomOut       = $("zoomOut");
 const elZoomReset     = $("zoomReset");
 const elCountsMeta    = $("countsMeta");
 const elCountsTable   = $("countsTable");
+
+// Multi-map refs
+const elGridSelect    = $("gridSelect");
+const elGridGenerate  = $("gridGenerateBtn");
+const elGridStatus    = $("gridStatus");
+const elGridPreview   = $("gridPreview");
+const elGridDownload  = $("gridDownloadBtn");
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 function setStatus(msg) {
@@ -484,6 +494,8 @@ async function generate() {
     fitToFrame();
     setProgress(null);
     setStatus("Done ✓");
+    if (elGridGenerate) elGridGenerate.disabled = false;
+    setGridStatus("Ready — choose a grid size and click Generate Grid.");
 
   } catch (err) {
     console.error(err);
@@ -493,6 +505,197 @@ async function generate() {
     IS_GENERATING        = false;
     elGenerate.disabled  = false;
     elGenerate.textContent = "Generate";
+  }
+}
+
+// ─── Multi-map grid generation ────────────────────────────────────────────────
+function setGridStatus(msg) {
+  if (elGridStatus) elGridStatus.textContent = msg;
+}
+
+// Render a single 128×128 segment from assign[] into a new canvas and return it
+async function renderSegmentCanvas(assign, size) {
+  const W = size * TILE, H = size * TILE;
+  const c = Object.assign(document.createElement("canvas"), { width: W, height: H });
+  const ctx = c.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+
+  const usedIds = [...new Set(assign)].filter(Boolean);
+  await Promise.all(usedIds.map(loadTex));
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const id  = assign[y * size + x];
+      if (!id) continue;
+      const tex = TEX_CACHE.get(id);
+      if (tex) {
+        ctx.drawImage(tex, 0, 0, tex.width, tex.height, x * TILE, y * TILE, TILE, TILE);
+      } else {
+        const b = BLOCKS?.[id];
+        if (b?.avg_lab) { ctx.fillStyle = labToHexApprox(b.avg_lab); ctx.fillRect(x * TILE, y * TILE, TILE, TILE); }
+      }
+    }
+  }
+  return c;
+}
+
+// Convert canvas to PNG blob
+function canvasToBlob(canvas) {
+  return new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+}
+
+async function generateGrid() {
+  if (IS_GRID_GENERATING) return;
+  if (!BLOCKS)         { setGridStatus("Blocks not loaded yet."); return; }
+  if (!PALETTE.length) { setGridStatus("Palette is empty."); return; }
+  if (!elImg?.src)     { setGridStatus("Upload an image first."); return; }
+
+  IS_GRID_GENERATING = true;
+  elGridGenerate.disabled = true;
+  elGridGenerate.textContent = "Generating…";
+  elGridDownload.disabled = true;
+  if (elGridPreview) elGridPreview.innerHTML = "";
+
+  try {
+    const grid = parseInt(elGridSelect?.value || "2", 10);
+    const totalSize = grid * 128;
+
+    setGridStatus(`Cropping to ${totalSize}×${totalSize}…`);
+    let src = getCroppedCanvas(totalSize);
+    if (elSmooth?.checked) src = blurCanvas(src, 0.8);
+
+    // Read full image pixels
+    const tmp  = Object.assign(document.createElement("canvas"), { width: totalSize, height: totalSize });
+    const tctx = tmp.getContext("2d", { willReadFrequently: true });
+    tctx.drawImage(src, 0, 0);
+
+    const segments = []; // { row, col, canvas, counts }
+    const allCounts = {};
+
+    for (let row = 0; row < grid; row++) {
+      for (let col = 0; col < grid; col++) {
+        setGridStatus(`Processing segment ${row * grid + col + 1} of ${grid * grid}…`);
+        await new Promise(r => setTimeout(r, 0));
+
+        // Extract 128×128 segment pixels
+        const segData = tctx.getImageData(col * 128, row * 128, 128, 128);
+
+        const { assign, counts } = elDither?.checked
+          ? ditherAssign(segData, 128)
+          : simpleAssign(segData, 128);
+
+        // Merge counts
+        for (const [id, n] of Object.entries(counts)) {
+          allCounts[id] = (allCounts[id] || 0) + n;
+        }
+
+        const segCanvas = await renderSegmentCanvas(assign, 128);
+        segments.push({ row, col, canvas: segCanvas, counts });
+      }
+    }
+
+    // Build grid preview
+    if (elGridPreview) {
+      elGridPreview.innerHTML = "";
+      elGridPreview.style.gridTemplateColumns = `repeat(${grid}, 1fr)`;
+
+      for (const seg of segments) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "grid-seg";
+
+        const label = document.createElement("div");
+        label.className = "grid-seg-label";
+        label.textContent = `R${seg.row + 1} C${seg.col + 1}`;
+
+        // Scale down for preview
+        const preview = document.createElement("canvas");
+        preview.width  = 128;
+        preview.height = 128;
+        preview.style.imageRendering = "pixelated";
+        preview.style.width  = "100%";
+        preview.style.height = "100%";
+        const pctx = preview.getContext("2d");
+        pctx.drawImage(seg.canvas, 0, 0, seg.canvas.width, seg.canvas.height, 0, 0, 128, 128);
+
+        wrapper.appendChild(preview);
+        wrapper.appendChild(label);
+        elGridPreview.appendChild(wrapper);
+      }
+    }
+
+    // Store segments for download
+    elGridDownload._segments = segments;
+    elGridDownload._grid     = grid;
+    elGridDownload._counts   = allCounts;
+    elGridDownload.disabled  = false;
+
+    setGridStatus(`Done ✓ — ${grid}×${grid} grid (${grid * grid} maps)`);
+
+  } catch (err) {
+    console.error(err);
+    setGridStatus(`Error: ${err?.message || err}`);
+  } finally {
+    IS_GRID_GENERATING = false;
+    elGridGenerate.disabled  = false;
+    elGridGenerate.textContent = "Generate Grid";
+  }
+}
+
+async function downloadGridZip() {
+  const segments = elGridDownload._segments;
+  const grid     = elGridDownload._grid;
+  const counts   = elGridDownload._counts;
+  if (!segments || !grid) return;
+
+  if (typeof JSZip === "undefined") {
+    alert("JSZip not loaded — check your internet connection and refresh.");
+    return;
+  }
+
+  elGridDownload.textContent = "Building zip…";
+  elGridDownload.disabled = true;
+
+  try {
+    const zip = new JSZip();
+    const folder = zip.folder(`mapart-${grid}x${grid}-grid`);
+
+    for (const seg of segments) {
+      const blob = await canvasToBlob(seg.canvas);
+      folder.file(`map_row${seg.row + 1}_col${seg.col + 1}.png`, blob);
+    }
+
+    // Add a helpful README
+    const readme = [
+      `Minecraft Map Art — ${grid}×${grid} Grid`,
+      `Generated by MapArt Converter (joshuadobson.github.io/minecraft-tools/mapart/)`,
+      ``,
+      `HOW TO USE:`,
+      `Each PNG is one 128×128 Minecraft map.`,
+      `Place them in your world in this layout:`,
+      ``,
+      ...Array.from({ length: grid }, (_, row) =>
+        Array.from({ length: grid }, (_, col) =>
+          `map_row${row + 1}_col${col + 1}.png`
+        ).join("  |  ")
+      ),
+      ``,
+      `BLOCK TOTALS (all segments combined):`,
+      ...Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([id, n]) => `  ${(BLOCKS?.[id]?.name || id).padEnd(40)} ${n.toLocaleString()}`),
+      ``,
+      `If this tool saved you time, consider supporting on Ko-fi:`,
+      `https://ko-fi.com/joshuadobson`,
+    ].join("\n");
+
+    folder.file("README.txt", readme);
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    downloadBlob(`mapart-${grid}x${grid}-grid.zip`, blob);
+
+  } finally {
+    elGridDownload.textContent = "↓ Download ZIP";
+    elGridDownload.disabled = false;
   }
 }
 
@@ -546,6 +749,9 @@ elDownloadJson?.addEventListener("click", () => {
 elDownloadCsv?.addEventListener("click", () => {
   if (LAST_COUNTS) downloadText(`block-counts-${LAST_SIZE}.csv`, countsToCsv(LAST_COUNTS), "text/csv");
 });
+
+elGridGenerate?.addEventListener("click",  generateGrid);
+elGridDownload?.addEventListener("click",  downloadGridZip);
 
 elZoomIn?.addEventListener("click",    () => zoomAt(VIEW_STEP));
 elZoomOut?.addEventListener("click",   () => zoomAt(1 / VIEW_STEP));
