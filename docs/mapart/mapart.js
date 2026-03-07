@@ -1,213 +1,184 @@
-/* Map Art Converter (MapArt) — up-to-date, robust
- *
- * Features:
- * - Loads ../data/blocks.json (run server from /site)
- * - Crop-to-square via CropperJS (fallback: center-crop)
- * - Matches each pixel to nearest block avg_lab (Lab distance)
- * - Renders a TRUE texture mosaic using curated TOP textures (../textures_top/<id>.png)
- * - Block counts table + downloads (PNG / counts JSON / counts CSV)
- * - Pan by dragging (mouse) in preview window
- * - Zoom in/out/reset via buttons (no slider)
- *
- * Requirements:
- * - site/data/blocks.json exists
- * - curated textures exist at: site/textures_top/<block_id>.png
- * - index.html includes:
- *     <script src="libs/cropper.min.js"></script>
- *     <script src="mapart.js"></script>
- * - IMPORTANT: IDs in HTML must be unique (includeCreative, generateBtn etc.)
- */
-
 "use strict";
 
-let BLOCKS = null;
-let PALETTE = []; // { id, name, lab:[L,a,b], tags, flags }
-let cropper = null;
+// ─── Constants ────────────────────────────────────────────────────────────────
+const TILE        = 16;
+const VIEW_MIN    = 0.25;
+const VIEW_MAX    = 12;
+const VIEW_STEP   = 1.3;
+const DATA_URL    = "../data/blocks.json";
+const TEX_DIR     = "../textures_top";
 
-const TILE = 16; // render each chosen texture as a 16×16 tile
-const TEX_CACHE = new Map(); // id -> HTMLImageElement
-const TOP_TEX_OK = new Map(); // id -> boolean
-
-let LAST_COUNTS = null;
-let LAST_SIZE = 128;
-let LAST_ASSIGN = null;
-
+// ─── State ────────────────────────────────────────────────────────────────────
+let BLOCKS        = null;   // raw blocks.json
+let PALETTE       = [];     // filtered, ready-to-match entries
+let cropper       = null;
 let IS_GENERATING = false;
+let VIEW_SCALE    = 1;
+let LAST_COUNTS   = null;
+let LAST_SIZE     = 128;
+let LAST_ASSIGN   = null;
+let CURRENT_BLOB  = null;
 
-// ---- DOM ----
-const elFile = document.getElementById("fileInput");
-const elImg = document.getElementById("sourceImg");
-const elHint = document.getElementById("cropHint");
-const elReset = document.getElementById("resetBtn");
-const elGen = document.getElementById("generateBtn");
-const elSize = document.getElementById("sizeSel");
-const elPalette = document.getElementById("paletteSel");
-const elCreative = document.getElementById("includeCreative");
-const elTexPreview = document.getElementById("texturePreview"); // kept for UI; mosaic is always texture-based
-const elStatus = document.getElementById("status");
+const TEX_CACHE   = new Map(); // id → HTMLImageElement | null
 
-const outCanvas = document.getElementById("outCanvas");
-const outCtx = outCanvas?.getContext("2d", { willReadFrequently: true });
+// ─── DOM refs ─────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const elFile          = $("fileInput");
+const elImg           = $("sourceImg");
+const elHint          = $("cropHint");
+const elResetCrop     = $("resetCropBtn");
+const elGenerate      = $("generateBtn");
+const elSizeSelect    = $("sizeSelect");
+const elPaletteSelect = $("paletteSelect");
+const elCreative      = $("includeCreative");
+const elDither        = $("enableDither");
+const elSmooth        = $("smoothInput");
+const elStatus        = $("statusMsg");
+const elProgressWrap  = $("progressWrap");
+const elProgressBar   = $("progressBar");
+const outCanvas       = $("outCanvas");
+const outCtx          = outCanvas?.getContext("2d", { willReadFrequently: true });
+const zoomWrap        = document.querySelector(".zoom-wrap");
+const elDownloadPng   = $("downloadPng");
+const elDownloadJson  = $("downloadJson");
+const elDownloadCsv   = $("downloadCsv");
+const elZoomIn        = $("zoomIn");
+const elZoomOut       = $("zoomOut");
+const elZoomReset     = $("zoomReset");
+const elCountsMeta    = $("countsMeta");
+const elCountsTable   = $("countsTable");
 
-const elDownload = document.getElementById("downloadBtn");
-const elCountsMeta = document.getElementById("countsMeta");
-const elCountsTable = document.getElementById("countsTable");
-const elDLCountsJson = document.getElementById("downloadCountsJson");
-const elDLCountsCsv = document.getElementById("downloadCountsCsv");
-
-const elZoomIn = document.getElementById("zoomInBtn");
-const elZoomOut = document.getElementById("zoomOutBtn");
-const elZoomReset = document.getElementById("zoomResetBtn");
-const zoomWrap = document.querySelector(".zoomWrap");
-
-// ---- View state (zoom/pan) ----
-let VIEW_SCALE = 1;
-const VIEW_MIN = 0.25;
-const VIEW_MAX = 8;
-const VIEW_STEP = 1.25;
-
-const DATA_URL = "../data/blocks.json";
-const TOP_TEX_DIR = "../textures_top";
-const url = `${TOP_TEX_DIR}/${id}.png`;
-
-const res = await fetch(`${TOP_TEX_DIR}/${id}.png`, { method: "HEAD", cache: "no-store" });
-
-const elSmooth = () => document.getElementById("smoothInput");
-
-function getBlurredCanvas(srcCanvas, radius = 0.8){
-  const c = document.createElement("canvas");
-  c.width = srcCanvas.width;
-  c.height = srcCanvas.height;
-
-  const ctx = c.getContext("2d");
-  ctx.filter = `blur(${radius}px)`;
-  ctx.drawImage(srcCanvas, 0, 0);
-  ctx.filter = "none";
-
-  return c;
-}
-// ---------- Utilities ----------
-function setStatus(msg){
-  if(elStatus) elStatus.textContent = msg;
+// ─── Utility ──────────────────────────────────────────────────────────────────
+function setStatus(msg) {
+  if (elStatus) elStatus.textContent = msg;
 }
 
-function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+function setProgress(pct) {
+  // pct: 0–1, or null to hide
+  if (!elProgressWrap || !elProgressBar) return;
+  if (pct === null) {
+    elProgressWrap.style.opacity = "0";
+    return;
+  }
+  elProgressWrap.style.opacity = "1";
+  elProgressBar.style.width = `${Math.round(pct * 100)}%`;
+}
 
-function downloadText(filename, text, mime="text/plain"){
-  const blob = new Blob([text], { type: mime });
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function downloadBlob(filename, blob) {
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
 }
 
-function countsToCsv(counts){
-  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+function downloadText(filename, text, mime = "text/plain") {
+  downloadBlob(filename, new Blob([text], { type: mime }));
+}
+
+function countsToCsv(counts) {
   const lines = ["block_id,block_name,count"];
-  for(const [id, n] of entries){
-    const name = (BLOCKS?.[id]?.name || id).replaceAll('"','""');
+  for (const [id, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
+    const name = (BLOCKS?.[id]?.name || id).replaceAll('"', '""');
     lines.push(`${id},"${name}",${n}`);
   }
   return lines.join("\n");
 }
 
-function downloadCanvasPNG(canvas, filename){
-  canvas.toBlob((blob) => {
-    if(!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, "image/png");
+// ─── Color math (sRGB → Linear → XYZ D65 → CIELAB) ──────────────────────────
+function srgbToLinear(u) {
+  return u <= 0.04045 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4);
 }
 
-// ---------- Lab conversion (sRGB -> linear -> XYZ -> Lab D65) ----------
-function srgbToLinear(u){
-  return (u <= 0.04045) ? (u / 12.92) : Math.pow((u + 0.055) / 1.055, 2.4);
-}
-function rgbToXyz(r, g, b){
-  const x = r*0.4124564 + g*0.3575761 + b*0.1804375;
-  const y = r*0.2126729 + g*0.7151522 + b*0.0721750;
-  const z = r*0.0193339 + g*0.1191920 + b*0.9503041;
-  return [x,y,z];
-}
-function fLab(t){
-  const d = 6/29;
-  const d3 = d*d*d;
-  return (t > d3) ? Math.cbrt(t) : (t/(3*d*d) + 4/29);
-}
-function xyzToLab(x,y,z){
-  const Xn = 0.95047, Yn = 1.0, Zn = 1.08883;
-  const fx = fLab(x/Xn), fy = fLab(y/Yn), fz = fLab(z/Zn);
-  const L = 116*fy - 16;
-  const a = 500*(fx - fy);
-  const b = 200*(fy - fz);
-  return [L,a,b];
-}
-function rgbToLab255(R,G,B){
-  const r = srgbToLinear(R/255);
-  const g = srgbToLinear(G/255);
-  const b = srgbToLinear(B/255);
-  const [x,y,z] = rgbToXyz(r,g,b);
-  return xyzToLab(x,y,z);
-}
-function distLab(a,b){
-  const dL = a[0]-b[0], da = a[1]-b[1], db = a[2]-b[2];
-  return Math.sqrt(dL*dL + da*da + db*db);
+function rgbToLab(R, G, B) {
+  const r = srgbToLinear(R / 255);
+  const g = srgbToLinear(G / 255);
+  const b = srgbToLinear(B / 255);
+
+  // XYZ (D65 illuminant)
+  const X = r * 0.4124564 + g * 0.3575761 + b * 0.1804375;
+  const Y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750;
+  const Z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041;
+
+  const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+  const fx = f(X / 0.95047);
+  const fy = f(Y / 1.00000);
+  const fz = f(Z / 1.08883);
+
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
 }
 
-// ---------- Curated TOP textures ----------
-function topTextureUrl(id){
-  // mapart/ -> ../textures_top/
-  return `../textures_top/${id}.png`;
+function labDist(a, b) {
+  const dL = a[0] - b[0], da = a[1] - b[1], db = a[2] - b[2];
+  return dL * dL + da * da + db * db; // squared — enough for comparisons
 }
 
-async function topTextureExists(id){
-  if(TOP_TEX_OK.has(id)) return TOP_TEX_OK.get(id);
+// ─── Texture loading ─────────────────────────────────────────────────────────
+function texUrl(id) { return `${TEX_DIR}/${id}.png`; }
 
-  const url = topTextureUrl(id);
-  try{
-    const res = await fetch(url, { method: "HEAD", cache: "no-store" });
-    const ok = res.ok;
-    TOP_TEX_OK.set(id, ok);
-    return ok;
-  } catch {
-    TOP_TEX_OK.set(id, false);
-    return false;
-  }
-}
-
-function loadTextureForBlock(id){
-  if(TEX_CACHE.has(id)) return Promise.resolve(TEX_CACHE.get(id));
-
-  const url = topTextureUrl(id);
-  return new Promise((resolve) => {
+function loadTex(id) {
+  if (TEX_CACHE.has(id)) return Promise.resolve(TEX_CACHE.get(id));
+  return new Promise(resolve => {
     const img = new Image();
-    img.onload = () => {
-      TEX_CACHE.set(id, img);
-      resolve(img);
-    };
-    img.onerror = () => resolve(null);
-    img.src = url;
+    img.onload  = () => { TEX_CACHE.set(id, img); resolve(img); };
+    img.onerror = () => { TEX_CACHE.set(id, null); resolve(null); };
+    img.src = texUrl(id);
   });
 }
 
-// ---------- Cropper ----------
-function initCropper(){
-  if(cropper){
-    cropper.destroy();
-    cropper = null;
+// ─── Palette building ─────────────────────────────────────────────────────────
+// No more HEAD requests: we attempt texture loads lazily at render time.
+// buildPalette just filters BLOCKS by the user's chosen mode.
+async function buildPalette() {
+  if (!BLOCKS) return;
+  setStatus("Building palette…");
+
+  const mode           = elPaletteSelect?.value || "full_solid";
+  const incCreative    = !!elCreative?.checked;
+  const arr            = [];
+
+  for (const [id, b] of Object.entries(BLOCKS)) {
+    if (!b?.avg_lab) continue;
+    const tags  = b.tags       || {};
+    const flags = b.tag_flags  || {};
+
+    if (!incCreative && tags.creative_only) continue;
+
+    if (mode === "full_solid") {
+      if (flags.full_block !== true) continue;
+      if (tags.transparent || tags.noisy)  continue;
+    } else if (mode === "all_solid") {
+      if (flags.full_block !== true) continue;
+      if (tags.transparent)          continue;
+    }
+    // "everything": no extra filter
+
+    arr.push({ id, name: b.name || id, lab: b.avg_lab });
   }
 
-  if(window.Cropper && elImg){
+  arr.sort((a, b) => a.id.localeCompare(b.id));
+  PALETTE = arr;
+  setStatus(`Palette ready — ${PALETTE.length} blocks. Upload an image to start.`);
+}
+
+// ─── Nearest block (brute-force; fast enough for 128×128 with caching) ────────
+function nearestBlock(lab) {
+  let best = PALETTE[0], bestD = Infinity;
+  for (const p of PALETTE) {
+    const d = labDist(lab, p.lab);
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  return best;
+}
+
+// ─── Cropper ─────────────────────────────────────────────────────────────────
+function initCropper() {
+  if (cropper) { cropper.destroy(); cropper = null; }
+
+  if (window.Cropper && elImg) {
     cropper = new Cropper(elImg, {
       viewMode: 1,
       dragMode: "move",
@@ -216,452 +187,378 @@ function initCropper(){
       background: false,
       responsive: true,
       guides: true,
-      center: true
+      center: true,
     });
-    if(elReset) elReset.disabled = false;
-    if(elGen) elGen.disabled = false;
-    return;
+    elResetCrop.disabled = false;
   }
 
-  if(elReset) elReset.disabled = true;
-  if(elGen) elGen.disabled = false;
-  setStatus("CropperJS not found. Using center-crop fallback.");
+  elGenerate.disabled = false;
+  setStatus("Adjust crop, then click Generate.");
 }
 
-function getCroppedCanvas(size){
-  if(cropper){
-    return cropper.getCroppedCanvas({
-      width: size,
-      height: size,
-      imageSmoothingEnabled: true
-    });
+function getCroppedCanvas(size) {
+  if (cropper) {
+    return cropper.getCroppedCanvas({ width: size, height: size, imageSmoothingEnabled: true });
   }
-
-  // Center-crop fallback
-  const srcW = elImg.naturalWidth;
-  const srcH = elImg.naturalHeight;
-  const s = Math.min(srcW, srcH);
-  const sx = Math.floor((srcW - s) / 2);
-  const sy = Math.floor((srcH - s) / 2);
-
-  const c = document.createElement("canvas");
-  c.width = size;
-  c.height = size;
+  // Centre-crop fallback
+  const sw = elImg.naturalWidth, sh = elImg.naturalHeight;
+  const s  = Math.min(sw, sh);
+  const c  = Object.assign(document.createElement("canvas"), { width: size, height: size });
   const cx = c.getContext("2d", { willReadFrequently: true });
   cx.imageSmoothingEnabled = true;
-  cx.drawImage(elImg, sx, sy, s, s, 0, 0, size, size);
+  cx.drawImage(elImg, Math.floor((sw - s) / 2), Math.floor((sh - s) / 2), s, s, 0, 0, size, size);
   return c;
 }
 
-// ---------- Palette building ----------
-async function buildPalette(){
-  if(!BLOCKS) return;
-
-  setStatus("Building palette…");
-
-  const mode = elPalette?.value || "full_solid";
-  const includeCreative = !!elCreative?.checked;
-
-  const ids = Object.keys(BLOCKS);
-  const arr = [];
-
-  // Only include blocks that have curated top textures present
-  // (prevents falling back to old /textures)
-  for(const id of ids){
-    const b = BLOCKS[id];
-    if(!b?.avg_lab) continue;
-
-    const tags = b.tags || {};
-    const flags = b.tag_flags || {};
-
-    if(!includeCreative && tags.creative_only) continue;
-
-    if(mode === "full_solid"){
-      if(flags.full_block !== true) continue;
-      if(tags.transparent) continue;
-      if(tags.noisy) continue;
-    } else if(mode === "all_solid"){
-      if(flags.full_block !== true) continue;
-      if(tags.transparent) continue;
-    } // everything: no extra filters
-
-    if(!(await topTextureExists(id))) continue;
-
-    arr.push({
-      id,
-      name: b.name || id,
-      lab: b.avg_lab,
-      tags,
-      flags
-    });
-  }
-
-  arr.sort((a,b) => a.id.localeCompare(b.id));
-  PALETTE = arr;
-
-  setStatus(`Loaded blocks: ${Object.keys(BLOCKS).length}. Palette: ${PALETTE.length}.`);
+// ─── Optional: mild blur to reduce high-frequency noise before matching ───────
+function blurCanvas(src, radius = 0.8) {
+  const c = Object.assign(document.createElement("canvas"), { width: src.width, height: src.height });
+  const ctx = c.getContext("2d");
+  ctx.filter = `blur(${radius}px)`;
+  ctx.drawImage(src, 0, 0);
+  return c;
 }
 
-// ---------- Matching ----------
-function findNearestBlock(lab){
-  let best = null;
-  let bestD = Infinity;
-  for(const p of PALETTE){
-    const d = distLab(lab, p.lab);
-    if(d < bestD){
-      bestD = d;
-      best = p;
+// ─── Floyd-Steinberg dithering ────────────────────────────────────────────────
+// Operates in Lab space for perceptually uniform error diffusion.
+// Returns assign[] (block id per pixel) and counts {}.
+function ditherAssign(imgData, size) {
+  const data = imgData.data;
+  // Build a Float32 Lab buffer so we can diffuse errors
+  const labBuf = new Float32Array(size * size * 3);
+  for (let i = 0; i < size * size; i++) {
+    const [L, a, b] = rgbToLab(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+    labBuf[i * 3]     = L;
+    labBuf[i * 3 + 1] = a;
+    labBuf[i * 3 + 2] = b;
+  }
+
+  const assign = new Array(size * size).fill(null);
+  const counts = {};
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = y * size + x;
+      const off = idx * 3;
+      const pixLab = [labBuf[off], labBuf[off + 1], labBuf[off + 2]];
+
+      const picked = nearestBlock(pixLab);
+      assign[idx]           = picked.id;
+      counts[picked.id]     = (counts[picked.id] || 0) + 1;
+
+      // Error = input − chosen block's Lab
+      const eL = pixLab[0] - picked.lab[0];
+      const ea = pixLab[1] - picked.lab[1];
+      const eb = pixLab[2] - picked.lab[2];
+
+      // Diffuse to right (7/16), bottom-left (3/16), below (5/16), bottom-right (1/16)
+      const spread = [
+        [x + 1, y,     7 / 16],
+        [x - 1, y + 1, 3 / 16],
+        [x,     y + 1, 5 / 16],
+        [x + 1, y + 1, 1 / 16],
+      ];
+      for (const [nx, ny, w] of spread) {
+        if (nx < 0 || nx >= size || ny >= size) continue;
+        const ni = (ny * size + nx) * 3;
+        labBuf[ni]     += eL * w;
+        labBuf[ni + 1] += ea * w;
+        labBuf[ni + 2] += eb * w;
+      }
     }
   }
-  return best;
+
+  return { assign, counts };
 }
 
-// ---------- Render mosaic ----------
-async function renderTextureMosaic(assign, size){
-  const W = size * TILE;
-  const H = size * TILE;
+// ─── Simple (no dither) assign ────────────────────────────────────────────────
+function simpleAssign(imgData, size) {
+  const data   = imgData.data;
+  const assign = new Array(size * size).fill(null);
+  const counts = {};
+  const cache  = new Map(); // rgb int → block
 
-  outCanvas.width = W;
+  for (let i = 0; i < size * size; i++) {
+    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+    const a = data[i * 4 + 3];
+    if (a === 0) continue;
+
+    const key = (r << 16) | (g << 8) | b;
+    let pick = cache.get(key);
+    if (!pick) {
+      pick = nearestBlock(rgbToLab(r, g, b));
+      cache.set(key, pick);
+    }
+    assign[i]          = pick.id;
+    counts[pick.id]    = (counts[pick.id] || 0) + 1;
+  }
+
+  return { assign, counts };
+}
+
+// ─── Render mosaic ────────────────────────────────────────────────────────────
+async function renderMosaic(assign, size) {
+  const W = size * TILE, H = size * TILE;
+  outCanvas.width  = W;
   outCanvas.height = H;
-
   outCtx.imageSmoothingEnabled = false;
   outCtx.clearRect(0, 0, W, H);
 
-  // load used textures
-  const used = Array.from(new Set(assign)).filter(Boolean);
-  await Promise.all(used.map(loadTextureForBlock));
+  const usedIds = [...new Set(assign)].filter(Boolean);
 
-  let p = 0;
-  for(let y=0; y<size; y++){
-    for(let x=0; x<size; x++){
-      const id = assign[p++];
-      if(!id) continue;
+  // Load textures in parallel
+  await Promise.all(usedIds.map(loadTex));
 
+  // Render row by row, yielding occasionally so the browser stays responsive
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const id  = assign[y * size + x];
+      if (!id) continue;
       const tex = TEX_CACHE.get(id);
-      if(!tex) continue;
+      if (tex) {
+        outCtx.drawImage(tex, 0, 0, tex.width, tex.height, x * TILE, y * TILE, TILE, TILE);
+      } else {
+        // Fallback: draw the block's avg colour as a solid tile
+        const b = BLOCKS?.[id];
+        if (b?.avg_lab) {
+          // Approximate Lab→RGB for a simple fallback swatch
+          outCtx.fillStyle = labToHexApprox(b.avg_lab);
+          outCtx.fillRect(x * TILE, y * TILE, TILE, TILE);
+        }
+      }
+    }
 
-      outCtx.drawImage(tex, 0, 0, tex.width, tex.height, x*TILE, y*TILE, TILE, TILE);
+    // Yield every 8 rows
+    if (y % 8 === 0) {
+      setProgress((y + 1) / size * 0.9 + 0.1);
+      await new Promise(r => setTimeout(r, 0));
     }
   }
 }
 
-// ---------- Counts UI ----------
-function renderCounts(counts, total){
-  if(!elCountsTable) return;
+// Very rough Lab→hex fallback (only used when texture is missing)
+function labToHexApprox([L, a, b]) {
+  const fy = (L + 16) / 116;
+  const fx = a / 500 + fy;
+  const fz = fy - b / 200;
+  const f3 = t => t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787;
+  const X  = f3(fx) * 0.95047;
+  const Y  = f3(fy) * 1.00000;
+  const Z  = f3(fz) * 1.08883;
+  const toS = u => {
+    const v = u <= 0.0031308 ? 12.92 * u : 1.055 * u ** (1 / 2.4) - 0.055;
+    return clamp(Math.round(v * 255), 0, 255);
+  };
+  const R = toS( 3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z);
+  const G = toS(-0.9692660 * X + 1.8760108 * Y + 0.0415560 * Z);
+  const B = toS( 0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z);
+  return `#${[R, G, B].map(v => v.toString(16).padStart(2, "0")).join("")}`;
+}
 
-  const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
-  if(entries.length === 0){
-    elCountsTable.innerHTML = `<div class="muted">No counts yet.</div>`;
+// ─── Counts UI ────────────────────────────────────────────────────────────────
+function renderCounts(counts, total) {
+  if (!elCountsTable) return;
+
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) {
+    elCountsTable.innerHTML = `<p class="empty">No counts yet.</p>`;
     return;
   }
 
   elCountsTable.innerHTML = entries.map(([id, n]) => {
-    const b = BLOCKS?.[id];
-    const name = b?.name || id;
-    const pct = ((n / total) * 100).toFixed(1);
-    const img = topTextureUrl(id);
-
+    const name = BLOCKS?.[id]?.name || id;
+    const pct  = ((n / total) * 100).toFixed(1);
     return `
-      <div class="countRow">
-        <img class="countThumb" src="${img}" alt="${name}" />
-        <div class="countName">
-          ${name}
-          <div class="muted" style="padding:0;margin:0;font-size:11px">${id} • ${pct}%</div>
+      <div class="count-row">
+        <img class="count-thumb" src="${texUrl(id)}" alt="${name}" loading="lazy" />
+        <div class="count-info">
+          <span class="count-name">${name}</span>
+          <span class="count-sub">${id} · ${pct}%</span>
         </div>
-        <div class="countNum">${n.toLocaleString()}</div>
-      </div>
-    `;
+        <span class="count-num">${n.toLocaleString()}</span>
+      </div>`;
   }).join("");
 }
 
-// ---------- View transform (zoom/pan) ----------
-function applyViewTransform(){
-  if(!outCanvas) return;
+// ─── Zoom / Pan ───────────────────────────────────────────────────────────────
+function applyScale() {
+  if (!outCanvas) return;
   outCanvas.style.transformOrigin = "0 0";
   outCanvas.style.transform = `scale(${VIEW_SCALE})`;
+  // Resize the virtual scroll container so scrollbars appear
+  if (zoomWrap) {
+    const cw = outCanvas.width  * VIEW_SCALE;
+    const ch = outCanvas.height * VIEW_SCALE;
+    outCanvas.style.width  = `${outCanvas.width}px`;
+    outCanvas.style.height = `${outCanvas.height}px`;
+  }
 }
 
-function fitToFrame(){
-  if(!zoomWrap || !outCanvas) return;
-
-  // After render, canvas has real pixel size (size*TILE).
-  // Fit it into the visible wrapper.
-  const cw = outCanvas.width;
-  const ch = outCanvas.height;
-  const ww = zoomWrap.clientWidth;
-  const wh = zoomWrap.clientHeight;
-
-  if(cw <= 0 || ch <= 0 || ww <= 0 || wh <= 0) return;
-
-  const s = Math.min(ww / cw, wh / ch);
+function fitToFrame() {
+  if (!zoomWrap || !outCanvas || outCanvas.width === 0) return;
+  const s = Math.min(
+    zoomWrap.clientWidth  / outCanvas.width,
+    zoomWrap.clientHeight / outCanvas.height
+  );
   VIEW_SCALE = clamp(s, VIEW_MIN, VIEW_MAX);
-  applyViewTransform();
-
-  // center
-  zoomWrap.scrollLeft = Math.max(0, (cw * VIEW_SCALE - ww) / 2);
-  zoomWrap.scrollTop  = Math.max(0, (ch * VIEW_SCALE - wh) / 2);
+  applyScale();
+  zoomWrap.scrollLeft = Math.max(0, (outCanvas.width  * VIEW_SCALE - zoomWrap.clientWidth)  / 2);
+  zoomWrap.scrollTop  = Math.max(0, (outCanvas.height * VIEW_SCALE - zoomWrap.clientHeight) / 2);
 }
 
-function zoomAtCenter(factor){
-  if(!zoomWrap || !outCanvas) return;
-
-  const ww = zoomWrap.clientWidth;
-  const wh = zoomWrap.clientHeight;
-
-  // current center in scroll space
-  const cx = zoomWrap.scrollLeft + ww/2;
-  const cy = zoomWrap.scrollTop + wh/2;
-
-  const oldScale = VIEW_SCALE;
-  const newScale = clamp(oldScale * factor, VIEW_MIN, VIEW_MAX);
-  VIEW_SCALE = newScale;
-  applyViewTransform();
-
-  // keep center stable
-  const ratio = newScale / oldScale;
-  zoomWrap.scrollLeft = cx * ratio - ww/2;
-  zoomWrap.scrollTop  = cy * ratio - wh/2;
+function zoomAt(factor) {
+  if (!zoomWrap || !outCanvas) return;
+  const ww = zoomWrap.clientWidth, wh = zoomWrap.clientHeight;
+  const cx = zoomWrap.scrollLeft + ww / 2;
+  const cy = zoomWrap.scrollTop  + wh / 2;
+  const old = VIEW_SCALE;
+  VIEW_SCALE = clamp(old * factor, VIEW_MIN, VIEW_MAX);
+  applyScale();
+  const ratio = VIEW_SCALE / old;
+  zoomWrap.scrollLeft = cx * ratio - ww / 2;
+  zoomWrap.scrollTop  = cy * ratio - wh / 2;
 }
 
-function enableDragPan(container){
-  let isDown = false;
-  let startX = 0, startY = 0;
-  let scrollLeft = 0, scrollTop = 0;
-
-  container.style.cursor = "grab";
-
-  container.addEventListener("mousedown", (e) => {
-    isDown = true;
-    container.style.cursor = "grabbing";
-    startX = e.pageX;
-    startY = e.pageY;
-    scrollLeft = container.scrollLeft;
-    scrollTop = container.scrollTop;
-  });
-
-  window.addEventListener("mouseup", () => {
-    isDown = false;
-    container.style.cursor = "grab";
-  });
-
-  container.addEventListener("mouseleave", () => {
-    isDown = false;
-    container.style.cursor = "grab";
-  });
-
-  container.addEventListener("mousemove", (e) => {
-    if(!isDown) return;
-    e.preventDefault();
-    const dx = e.pageX - startX;
-    const dy = e.pageY - startY;
-    container.scrollLeft = scrollLeft - dx;
-    container.scrollTop = scrollTop - dy;
-  });
+function enableDragPan(el) {
+  let down = false, sx = 0, sy = 0, sl = 0, st = 0;
+  el.addEventListener("mousedown",  e => { down = true; sx = e.pageX; sy = e.pageY; sl = el.scrollLeft; st = el.scrollTop; el.style.cursor = "grabbing"; });
+  window.addEventListener("mouseup", () => { down = false; el.style.cursor = "grab"; });
+  el.addEventListener("mousemove",  e => { if (!down) return; e.preventDefault(); el.scrollLeft = sl - (e.pageX - sx); el.scrollTop = st - (e.pageY - sy); });
+  el.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? VIEW_STEP : 1 / VIEW_STEP); }, { passive: false });
 }
 
-// ---------- Generate ----------
-async function generate(){
-  if(IS_GENERATING) return;
+// ─── Generate ─────────────────────────────────────────────────────────────────
+async function generate() {
+  if (IS_GENERATING) return;
   IS_GENERATING = true;
+  elGenerate.disabled = true;
+  elGenerate.textContent = "Generating…";
 
-  try{
-    if(!BLOCKS){
-      setStatus("Blocks not loaded yet.");
-      return;
-    }
-    if(PALETTE.length === 0){
-      setStatus("Palette is empty (adjust filters or textures_top is missing files).");
-      return;
-    }
-    if(!elImg?.src){
-      setStatus("Upload an image first.");
-      return;
-    }
-    if(!outCanvas || !outCtx){
-      setStatus("Missing output canvas (check HTML IDs).");
-      return;
-    }
+  try {
+    if (!BLOCKS)          { setStatus("Blocks not loaded."); return; }
+    if (!PALETTE.length)  { setStatus("Palette is empty — check palette settings."); return; }
+    if (!elImg?.src)      { setStatus("Upload an image first."); return; }
 
-    const size = parseInt(elSize?.value || "128", 10);
-    LAST_SIZE = size;
+    const size = parseInt(elSizeSelect?.value || "128", 10);
+    LAST_SIZE  = size;
 
-    // 1) Crop to size×size pixels
+    setProgress(0);
     setStatus(`Cropping to ${size}×${size}…`);
-    const cropCanvas = getCroppedCanvas(size);
+    let src = getCroppedCanvas(size);
+    if (elSmooth?.checked) src = blurCanvas(src, 0.8);
 
-    // 2) Smooth (optional) BEFORE matching
-    const sourceCanvas = elSmooth()?.checked
-      ? getBlurredCanvas(cropCanvas, 0.8)
-      : cropCanvas;
-
-    // 3) Read pixels from sourceCanvas
-    const tmp = document.createElement("canvas");
-    tmp.width = size;
-    tmp.height = size;
-
+    // Read pixels
+    const tmp = Object.assign(document.createElement("canvas"), { width: size, height: size });
     const tctx = tmp.getContext("2d", { willReadFrequently: true });
-    tctx.imageSmoothingEnabled = true;
-    tctx.clearRect(0, 0, size, size);
-    tctx.drawImage(sourceCanvas, 0, 0);
-
-    setStatus(`Matching ${size*size} pixels against ${PALETTE.length} blocks…`);
+    tctx.drawImage(src, 0, 0);
     const imgData = tctx.getImageData(0, 0, size, size);
-    const data = imgData.data;
 
-    const counts = {};
-    const assign = new Array(size*size);
+    setProgress(0.05);
+    setStatus(`Matching pixels (${elDither?.checked ? "dithering" : "nearest"} mode)…`);
 
-    // Cache nearest by RGB key
-    const cache = new Map(); // int rgb -> paletteEntry
-    let p = 0;
+    await new Promise(r => setTimeout(r, 0)); // yield before heavy work
 
-    for(let i=0; i<data.length; i+=4){
-      const a = data[i+3];
-      if(a === 0){
-        assign[p++] = null;
-        continue;
-      }
+    const { assign, counts } = elDither?.checked
+      ? ditherAssign(imgData, size)
+      : simpleAssign(imgData, size);
 
-      const r = data[i], g = data[i+1], b = data[i+2];
-      const key = (r<<16) | (g<<8) | b;
-
-      let pick = cache.get(key);
-      if(!pick){
-        const lab = rgbToLab255(r, g, b);
-        pick = findNearestBlock(lab);
-        cache.set(key, pick);
-      }
-
-      assign[p++] = pick.id;
-      counts[pick.id] = (counts[pick.id] || 0) + 1;
-    }
-
-    LAST_COUNTS = counts;
     LAST_ASSIGN = assign;
+    LAST_COUNTS = counts;
 
-    // 4) Render texture mosaic
-    setStatus("Rendering texture mosaic…");
-    await renderTextureMosaic(assign, size);
+    setProgress(0.1);
+    setStatus("Rendering mosaic…");
+    await renderMosaic(assign, size);
 
-    // 5) UI updates
-    const total = size * size;
+    // UI
+    const total  = size * size;
     const unique = Object.keys(counts).length;
-
-    if(elCountsMeta){
-      elCountsMeta.textContent = `${total.toLocaleString()} blocks • ${unique} block types • palette: ${PALETTE.length}`;
+    if (elCountsMeta) {
+      elCountsMeta.textContent = `${total.toLocaleString()} blocks · ${unique} unique types · palette: ${PALETTE.length}`;
     }
     renderCounts(counts, total);
 
-    if(elDownload) elDownload.disabled = false;
-    if(elDLCountsJson) elDLCountsJson.disabled = false;
-    if(elDLCountsCsv) elDLCountsCsv.disabled = false;
+    elDownloadPng.disabled  = false;
+    elDownloadJson.disabled = false;
+    elDownloadCsv.disabled  = false;
 
-    // Fit to frame after drawing
     fitToFrame();
+    setProgress(null);
+    setStatus("Done ✓");
 
-    setStatus("Done.");
-  } catch (e){
-    console.error(e);
-    setStatus(`Error: ${e?.message || e}`);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err?.message || err}`);
+    setProgress(null);
   } finally {
-    IS_GENERATING = false;
+    IS_GENERATING        = false;
+    elGenerate.disabled  = false;
+    elGenerate.textContent = "Generate";
   }
 }
 
-// ---------- Init ----------
-async function init(){
-  try{
-    setStatus("Loading blocks…");
-    const res = await fetch("../data/blocks.json", { cache: "no-store" });
-    if(!res.ok) throw new Error(`blocks.json fetch failed: ${res.status}`);
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  setStatus("Loading blocks.json…");
+  try {
+    const res = await fetch(DATA_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     BLOCKS = await res.json();
-
     await buildPalette();
-
-    setStatus("Loaded blocks. Upload an image to start.");
-  } catch (e){
+  } catch (e) {
     console.error(e);
-    setStatus("Failed to load ../data/blocks.json. Run the server from /site.");
+    setStatus("⚠ Could not load ../data/blocks.json. Make sure you're running a local server from /site.");
   }
 }
 
-// ---------- Events ----------
-elPalette?.addEventListener("change", async () => {
-  await buildPalette();
-  if(elImg?.src && LAST_ASSIGN) generate();
+// ─── Events ───────────────────────────────────────────────────────────────────
+elFile?.addEventListener("change", e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (CURRENT_BLOB) URL.revokeObjectURL(CURRENT_BLOB);
+  CURRENT_BLOB = URL.createObjectURL(file);
+  elImg.onload = () => {
+    elHint.style.display = "none";
+    elImg.style.opacity  = "1";
+    initCropper();
+  };
+  elImg.src = CURRENT_BLOB;
 });
 
+elResetCrop?.addEventListener("click",  () => cropper?.reset());
+elGenerate?.addEventListener("click",   generate);
+
+elPaletteSelect?.addEventListener("change", async () => {
+  await buildPalette();
+  if (LAST_ASSIGN) generate();
+});
 elCreative?.addEventListener("change", async () => {
   await buildPalette();
-  if(elImg?.src && LAST_ASSIGN) generate();
+  if (LAST_ASSIGN) generate();
 });
 
-let CURRENT_BLOB_URL = null;
-
-elFile?.addEventListener("change", (e) => {
-  const file = e.target.files?.[0];
-  if(!file) return;
-
-  // revoke previous blob
-  if(CURRENT_BLOB_URL){
-    URL.revokeObjectURL(CURRENT_BLOB_URL);
-    CURRENT_BLOB_URL = null;
-  }
-
-  const url = URL.createObjectURL(file);
-  CURRENT_BLOB_URL = url;
-
-  elImg.onload = () => {
-    if(elHint) elHint.style.display = "none";
-    elImg.style.opacity = "1";
-    initCropper();
-    setStatus("Adjust crop, then click Generate.");
-    // DO NOT revoke here; user may re-crop
-  };
-
-  elImg.src = url;
+elDownloadPng?.addEventListener("click", () => {
+  if (!outCanvas) return;
+  outCanvas.toBlob(blob => blob && downloadBlob(`mapart-${LAST_SIZE}x${LAST_SIZE}.png`, blob), "image/png");
+});
+elDownloadJson?.addEventListener("click", () => {
+  if (LAST_COUNTS) downloadText(`block-counts-${LAST_SIZE}.json`, JSON.stringify(LAST_COUNTS, null, 2), "application/json");
+});
+elDownloadCsv?.addEventListener("click", () => {
+  if (LAST_COUNTS) downloadText(`block-counts-${LAST_SIZE}.csv`, countsToCsv(LAST_COUNTS), "text/csv");
 });
 
-elReset?.addEventListener("click", () => {
-  if(cropper) cropper.reset();
-});
+elZoomIn?.addEventListener("click",    () => zoomAt(VIEW_STEP));
+elZoomOut?.addEventListener("click",   () => zoomAt(1 / VIEW_STEP));
+elZoomReset?.addEventListener("click", fitToFrame);
 
-elGen?.addEventListener("click", generate);
+if (zoomWrap) enableDragPan(zoomWrap);
 
-elDownload?.addEventListener("click", () => {
-  if(!outCanvas) return;
-  downloadCanvasPNG(outCanvas, `mapart-${LAST_SIZE}x${LAST_SIZE}-tiles.png`);
-});
-
-elDLCountsJson?.addEventListener("click", () => {
-  if(!LAST_COUNTS) return;
-  downloadText(`block-counts-${LAST_SIZE}.json`, JSON.stringify(LAST_COUNTS, null, 2), "application/json");
-});
-
-elDLCountsCsv?.addEventListener("click", () => {
-  if(!LAST_COUNTS) return;
-  downloadText(`block-counts-${LAST_SIZE}.csv`, countsToCsv(LAST_COUNTS), "text/csv");
-});
-
-// Zoom buttons
-elZoomIn?.addEventListener("click", () => zoomAtCenter(VIEW_STEP));
-elZoomOut?.addEventListener("click", () => zoomAtCenter(1 / VIEW_STEP));
-elZoomReset?.addEventListener("click", () => fitToFrame());
-
-// Enable drag pan
-if(zoomWrap) enableDragPan(zoomWrap);
-
-// Keep fit responsive
 window.addEventListener("resize", () => {
-  // only refit if something is rendered
-  if(outCanvas && outCanvas.width > 0 && outCanvas.height > 0) fitToFrame();
+  if (outCanvas?.width > 0) fitToFrame();
+});
+window.addEventListener("keydown", e => {
+  if (e.key === "+" || e.key === "=") zoomAt(VIEW_STEP);
+  if (e.key === "-")                  zoomAt(1 / VIEW_STEP);
 });
 
-// Optional: keyboard shortcuts when focused on page
-window.addEventListener("keydown", (e) => {
-  if(e.key === "+" || e.key === "=") zoomAtCenter(VIEW_STEP);
-  if(e.key === "-") zoomAtCenter(1 / VIEW_STEP);
-});
-
-// Go
 init();
