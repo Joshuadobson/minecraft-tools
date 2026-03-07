@@ -208,7 +208,14 @@ function initCropper() {
 
 function getCroppedCanvas(size) {
   if (cropper) {
-    return cropper.getCroppedCanvas({ width: size, height: size, imageSmoothingEnabled: true });
+    // Always get the best quality crop then scale to requested size
+    const raw = cropper.getCroppedCanvas({ imageSmoothingEnabled: true, imageSmoothingQuality: "high" });
+    const c   = Object.assign(document.createElement("canvas"), { width: size, height: size });
+    const cx  = c.getContext("2d", { willReadFrequently: true });
+    cx.imageSmoothingEnabled = true;
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(raw, 0, 0, raw.width, raw.height, 0, 0, size, size);
+    return c;
   }
   // Centre-crop fallback
   const sw = elImg.naturalWidth, sh = elImg.naturalHeight;
