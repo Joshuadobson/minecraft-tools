@@ -464,7 +464,108 @@ select option { background: var(--surface2); }
   text-align: center;
 }
 
-/* ── Cropper overrides ───────────────────────────────────────────────────── */
+/* ── Multi-map section ───────────────────────────────────────────────────── */
+.multimap-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+
+.multimap-card {
+  border-top: 2px solid var(--accent);
+}
+
+.multimap-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.multimap-desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+  max-width: 500px;
+  line-height: 1.5;
+}
+
+.kofi-nudge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255,94,91,.08);
+  border: 1px solid rgba(255,94,91,.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  white-space: nowrap;
+  flex-wrap: wrap;
+}
+.kofi-nudge a {
+  color: #ff5e5b;
+  font-weight: 700;
+  text-decoration: none;
+}
+.kofi-nudge a:hover { text-decoration: underline; }
+
+.multimap-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.grid-status-bar {
+  padding: 10px 14px;
+  background: rgba(0,0,0,.2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-bottom: 16px;
+}
+
+.grid-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.grid-seg {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border2);
+  aspect-ratio: 1;
+  background: #111;
+}
+
+.grid-seg canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.grid-seg-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,.65);
+  color: var(--accent);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-align: center;
+  padding: 3px 0;
+  letter-spacing: 0.05em;
+}
 .cropper-view-box,
 .cropper-face { border-radius: 0; }
 .cropper-line  { background-color: var(--accent) !important; }
