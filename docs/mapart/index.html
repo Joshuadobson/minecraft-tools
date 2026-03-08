@@ -62,12 +62,19 @@
     </div>
 
     <div class="topbar-right">
-      <a href="https://ko-fi.com/joshuadobson" target="_blank" rel="noopener" class="kofi-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682-.143-1.682-.143V5.65s1.153.235 1.847.451c.694.216 2.362 1.465 2.362 3.571 0 1.58-1.6 3.106-2.527 2.265z"/></svg>
-        Support on Ko-fi
-      </a>
+      <div class="topbar-actions">
+        <button class="btn secondary feedback-trigger" id="feedbackBtn">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Feedback
+        </button>
+        <a href="https://ko-fi.com/joshuadobson" target="_blank" rel="noopener" class="kofi-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682-.143-1.682-.143V5.65s1.153.235 1.847.451c.694.216 2.362 1.465 2.362 3.571 0 1.58-1.6 3.106-2.527 2.265z"/></svg>
+          Support on Ko-fi
+        </a>
+      </div>
       <p class="disclaimer">
         <strong>Note:</strong> In-game maps apply height-based shading. This tool matches colours as a best-effort guide.
+        🔒 Your images never leave your device — <a href="privacy.html" class="disclaimer-link">Privacy Policy</a>
       </p>
     </div>
   </header>
@@ -211,6 +218,80 @@
 
     </section>
   </div>
+
+  <!-- ── Feedback modal ── -->
+  <div class="modal-overlay" id="feedbackOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Share your feedback</h3>
+        <button class="modal-close" id="feedbackClose">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="feedbackForm">
+        <input type="hidden" name="access_key" value="71102b14-5e90-4e02-9490-9528d511a275" />
+        <input type="hidden" name="subject" value="MapArt Converter Feedback" />
+
+        <!-- Star rating -->
+        <div class="field">
+          <label>How would you rate the tool?</label>
+          <div class="star-row" id="starRow">
+            <button type="button" class="star" data-val="1">★</button>
+            <button type="button" class="star" data-val="2">★</button>
+            <button type="button" class="star" data-val="3">★</button>
+            <button type="button" class="star" data-val="4">★</button>
+            <button type="button" class="star" data-val="5">★</button>
+          </div>
+          <input type="hidden" name="rating" id="ratingInput" value="" />
+        </div>
+
+        <!-- Type -->
+        <div class="field">
+          <label for="feedbackType">Type</label>
+          <select id="feedbackType" name="type">
+            <option value="general">General feedback</option>
+            <option value="bug">Bug report</option>
+            <option value="feature">Feature request</option>
+          </select>
+        </div>
+
+        <!-- Message -->
+        <div class="field">
+          <label for="feedbackMessage">Message</label>
+          <textarea id="feedbackMessage" name="message" rows="4" placeholder="Tell us what you think, what broke, or what you'd love to see…"></textarea>
+        </div>
+
+        <!-- Optional email -->
+        <div class="field">
+          <label for="feedbackEmail">Your email <span class="optional">(optional — only if you'd like a reply)</span></label>
+          <input type="email" id="feedbackEmail" name="email" placeholder="you@example.com" />
+        </div>
+
+        <div class="modal-footer">
+          <p class="privacy-note">Feedback is sent via Web3Forms. Your images are never uploaded — <a href="privacy.html" target="_blank">Privacy Policy</a></p>
+          <button type="submit" class="btn primary" id="feedbackSubmit">Send feedback</button>
+        </div>
+      </form>
+
+      <div class="feedback-success" id="feedbackSuccess">
+        <div class="success-icon">✓</div>
+        <h4>Thanks for your feedback!</h4>
+        <p>It genuinely helps make the tool better.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer class="site-footer">
+    <span>Built by <a href="https://ko-fi.com/joshuadobson" target="_blank" rel="noopener">Joshua Dobson</a></span>
+    <span class="footer-sep">·</span>
+    <span>🔒 Images never leave your device</span>
+    <span class="footer-sep">·</span>
+    <a href="privacy.html">Privacy Policy</a>
+    <span class="footer-sep">·</span>
+    <button class="footer-feedback-btn" id="feedbackBtn2">Leave feedback</button>
+  </footer>
 
   <script src="libs/cropper.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
