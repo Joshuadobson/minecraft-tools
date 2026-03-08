@@ -751,6 +751,76 @@ async function downloadGridZip() {
   }
 }
 
+// ─── Feedback modal ───────────────────────────────────────────────────────────
+const feedbackOverlay = document.getElementById("feedbackOverlay");
+const feedbackForm    = document.getElementById("feedbackForm");
+const feedbackSuccess = document.getElementById("feedbackSuccess");
+const starRow         = document.getElementById("starRow");
+const ratingInput     = document.getElementById("ratingInput");
+let selectedRating    = 0;
+
+function openFeedback() {
+  feedbackOverlay.classList.add("active");
+  feedbackSuccess.style.display = "none";
+  feedbackForm.style.display    = "block";
+}
+function closeFeedback() {
+  feedbackOverlay.classList.remove("active");
+}
+
+document.getElementById("feedbackBtn")?.addEventListener("click",  openFeedback);
+document.getElementById("feedbackBtn2")?.addEventListener("click", openFeedback);
+document.getElementById("feedbackClose")?.addEventListener("click", closeFeedback);
+feedbackOverlay?.addEventListener("click", e => { if (e.target === feedbackOverlay) closeFeedback(); });
+
+// Star rating
+starRow?.querySelectorAll(".star").forEach(star => {
+  star.addEventListener("click", () => {
+    selectedRating = parseInt(star.dataset.val);
+    ratingInput.value = selectedRating;
+    starRow.querySelectorAll(".star").forEach((s, i) => {
+      s.classList.toggle("active", i < selectedRating);
+    });
+  });
+  star.addEventListener("mouseenter", () => {
+    const val = parseInt(star.dataset.val);
+    starRow.querySelectorAll(".star").forEach((s, i) => {
+      s.classList.toggle("hover", i < val);
+    });
+  });
+  star.addEventListener("mouseleave", () => {
+    starRow.querySelectorAll(".star").forEach(s => s.classList.remove("hover"));
+  });
+});
+
+feedbackForm?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const submitBtn = document.getElementById("feedbackSubmit");
+  submitBtn.textContent = "Sending…";
+  submitBtn.disabled = true;
+
+  try {
+    const data = new FormData(feedbackForm);
+    const res  = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      body: data
+    });
+    if (res.ok) {
+      feedbackForm.style.display    = "none";
+      feedbackSuccess.style.display = "flex";
+      feedbackForm.reset();
+      selectedRating = 0;
+      starRow?.querySelectorAll(".star").forEach(s => s.classList.remove("active", "hover"));
+      setTimeout(closeFeedback, 3000);
+    } else {
+      throw new Error("Submission failed");
+    }
+  } catch {
+    submitBtn.textContent = "Try again";
+    submitBtn.disabled = false;
+  }
+});
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
   setStatus("Loading blocks.json…");
