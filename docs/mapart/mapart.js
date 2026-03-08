@@ -1,5 +1,7 @@
 "use strict";
 
+import { buildLitematic } from "./litematic.js";
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 const TILE        = 16;
 const VIEW_MIN    = 0.25;
@@ -45,6 +47,7 @@ const zoomWrap        = document.querySelector(".zoom-wrap");
 const elDownloadPng   = $("downloadPng");
 const elDownloadJson  = $("downloadJson");
 const elDownloadCsv   = $("downloadCsv");
+const elDownloadSchem = $("downloadSchematic");
 const elZoomIn        = $("zoomIn");
 const elZoomOut       = $("zoomOut");
 const elZoomReset     = $("zoomReset");
@@ -398,50 +401,62 @@ function renderCounts(counts, total) {
 }
 
 // ─── Zoom / Pan ───────────────────────────────────────────────────────────────
-function applyScale() {
+let PAN_X = 0, PAN_Y = 0;
+
+function applyTransform() {
   if (!outCanvas) return;
   outCanvas.style.transformOrigin = "0 0";
-  outCanvas.style.transform = `scale(${VIEW_SCALE})`;
-  // Resize the virtual scroll container so scrollbars appear
-  if (zoomWrap) {
-    const cw = outCanvas.width  * VIEW_SCALE;
-    const ch = outCanvas.height * VIEW_SCALE;
-    outCanvas.style.width  = `${outCanvas.width}px`;
-    outCanvas.style.height = `${outCanvas.height}px`;
-  }
+  outCanvas.style.transform = `translate(${PAN_X}px, ${PAN_Y}px) scale(${VIEW_SCALE})`;
 }
 
 function fitToFrame() {
   if (!zoomWrap || !outCanvas || outCanvas.width === 0) return;
-  const s = Math.min(
-    zoomWrap.clientWidth  / outCanvas.width,
-    zoomWrap.clientHeight / outCanvas.height
-  );
+  const ww = zoomWrap.clientWidth, wh = zoomWrap.clientHeight;
+  const s  = Math.min(ww / outCanvas.width, wh / outCanvas.height);
   VIEW_SCALE = clamp(s, VIEW_MIN, VIEW_MAX);
-  applyScale();
-  zoomWrap.scrollLeft = Math.max(0, (outCanvas.width  * VIEW_SCALE - zoomWrap.clientWidth)  / 2);
-  zoomWrap.scrollTop  = Math.max(0, (outCanvas.height * VIEW_SCALE - zoomWrap.clientHeight) / 2);
+  // Centre the canvas
+  PAN_X = (ww - outCanvas.width  * VIEW_SCALE) / 2;
+  PAN_Y = (wh - outCanvas.height * VIEW_SCALE) / 2;
+  applyTransform();
 }
 
-function zoomAt(factor) {
+function zoomAt(factor, pivotX, pivotY) {
   if (!zoomWrap || !outCanvas) return;
   const ww = zoomWrap.clientWidth, wh = zoomWrap.clientHeight;
-  const cx = zoomWrap.scrollLeft + ww / 2;
-  const cy = zoomWrap.scrollTop  + wh / 2;
-  const old = VIEW_SCALE;
-  VIEW_SCALE = clamp(old * factor, VIEW_MIN, VIEW_MAX);
-  applyScale();
-  const ratio = VIEW_SCALE / old;
-  zoomWrap.scrollLeft = cx * ratio - ww / 2;
-  zoomWrap.scrollTop  = cy * ratio - wh / 2;
+  // Default pivot: centre of the wrap
+  const px = pivotX ?? ww / 2;
+  const py = pivotY ?? wh / 2;
+
+  const oldScale = VIEW_SCALE;
+  VIEW_SCALE = clamp(oldScale * factor, VIEW_MIN, VIEW_MAX);
+  // Adjust pan so the pivot point stays fixed
+  PAN_X = px - (px - PAN_X) * (VIEW_SCALE / oldScale);
+  PAN_Y = py - (py - PAN_Y) * (VIEW_SCALE / oldScale);
+  applyTransform();
 }
 
 function enableDragPan(el) {
-  let down = false, sx = 0, sy = 0, sl = 0, st = 0;
-  el.addEventListener("mousedown",  e => { down = true; sx = e.pageX; sy = e.pageY; sl = el.scrollLeft; st = el.scrollTop; el.style.cursor = "grabbing"; });
+  let down = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+
+  el.addEventListener("mousedown", e => {
+    down = true;
+    startX = e.clientX; startY = e.clientY;
+    startPanX = PAN_X;  startPanY = PAN_Y;
+    el.style.cursor = "grabbing";
+  });
   window.addEventListener("mouseup", () => { down = false; el.style.cursor = "grab"; });
-  el.addEventListener("mousemove",  e => { if (!down) return; e.preventDefault(); el.scrollLeft = sl - (e.pageX - sx); el.scrollTop = st - (e.pageY - sy); });
-  el.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? VIEW_STEP : 1 / VIEW_STEP); }, { passive: false });
+  el.addEventListener("mousemove", e => {
+    if (!down) return;
+    e.preventDefault();
+    PAN_X = startPanX + (e.clientX - startX);
+    PAN_Y = startPanY + (e.clientY - startY);
+    applyTransform();
+  });
+  el.addEventListener("wheel", e => {
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? VIEW_STEP : 1 / VIEW_STEP, e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
 }
 
 // ─── Generate ─────────────────────────────────────────────────────────────────
@@ -497,12 +512,11 @@ async function generate() {
     elDownloadPng.disabled  = false;
     elDownloadJson.disabled = false;
     elDownloadCsv.disabled  = false;
+    elDownloadSchem.disabled = false;
 
     fitToFrame();
     setProgress(null);
     setStatus("Done ✓");
-    if (elGridGenerate) elGridGenerate.disabled = false;
-    setGridStatus("Ready — choose a grid size and click Generate Grid.");
 
   } catch (err) {
     console.error(err);
@@ -512,6 +526,11 @@ async function generate() {
     IS_GENERATING        = false;
     elGenerate.disabled  = false;
     elGenerate.textContent = "Generate";
+    // Enable grid as long as we have an image loaded
+    if (elImg?.src && elGridGenerate) {
+      elGridGenerate.disabled = false;
+      setGridStatus("Ready — choose a grid size and click Generate Grid.");
+    }
   }
 }
 
@@ -730,6 +749,8 @@ elFile?.addEventListener("change", e => {
     elHint.style.display = "none";
     elImg.style.opacity  = "1";
     initCropper();
+    if (elGridGenerate) elGridGenerate.disabled = false;
+    setGridStatus("Ready — choose a grid size and click Generate Grid.");
   };
   elImg.src = CURRENT_BLOB;
 });
@@ -759,6 +780,22 @@ elDownloadCsv?.addEventListener("click", () => {
 
 elGridGenerate?.addEventListener("click",  generateGrid);
 elGridDownload?.addEventListener("click",  downloadGridZip);
+
+elDownloadSchem?.addEventListener("click", async () => {
+  if (!LAST_ASSIGN || !BLOCKS) return;
+  elDownloadSchem.textContent = "Building…";
+  elDownloadSchem.disabled = true;
+  try {
+    const blob = buildLitematic(LAST_ASSIGN, LAST_SIZE, BLOCKS);
+    downloadBlob(`mapart-${LAST_SIZE}x${LAST_SIZE}.litematic`, blob);
+  } catch(e) {
+    console.error(e);
+    setStatus(`Schematic error: ${e.message}`);
+  } finally {
+    elDownloadSchem.textContent = "↓ .litematic";
+    elDownloadSchem.disabled = false;
+  }
+});
 
 elZoomIn?.addEventListener("click",    () => zoomAt(VIEW_STEP));
 elZoomOut?.addEventListener("click",   () => zoomAt(1 / VIEW_STEP));
