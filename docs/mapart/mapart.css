@@ -1,5 +1,13 @@
 /* ── Tokens ──────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+@font-face {
+  font-family: 'Monocraft';
+  src: url('https://cdn.jsdelivr.net/gh/IdreesInc/Monocraft@main/dist/Monocraft-ttf/Monocraft.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --bg:          #0f1117;
@@ -9,7 +17,7 @@
   --border2:     rgba(255,255,255,.12);
   --text:        #e8eaf0;
   --muted:       rgba(232,234,240,.45);
-  --accent:      #4ade80;     /* Minecraft grass green */
+  --accent:      #4ade80;
   --accent-dim:  rgba(74,222,128,.15);
   --accent2:     #60a5fa;
   --accent3:     #f97316;
@@ -18,7 +26,7 @@
   --shadow:      0 24px 60px rgba(0,0,0,.55);
   --shadow-sm:   0 4px 14px rgba(0,0,0,.35);
   --font-ui:     'DM Sans', system-ui, sans-serif;
-  --font-mono:   'Space Mono', monospace;
+  --font-mono:   'Monocraft', monospace;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -68,9 +76,9 @@ body {
 
 .brand-name {
   display: block;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.02em;
   color: var(--accent);
   font-family: var(--font-mono);
 }
@@ -336,7 +344,7 @@ select option { background: var(--surface2); }
   background: rgba(0,0,0,.2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   font-family: var(--font-mono);
   display: flex;
@@ -388,7 +396,7 @@ select option { background: var(--surface2); }
 }
 
 .counts-meta {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
   font-family: var(--font-mono);
 }
@@ -455,13 +463,13 @@ select option { background: var(--surface2); }
   text-overflow: ellipsis;
 }
 .count-sub {
-  font-size: 11px;
+  font-size: 9px;
   color: var(--muted);
   font-family: var(--font-mono);
 }
 
 .count-num {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--accent);
   font-family: var(--font-mono);
