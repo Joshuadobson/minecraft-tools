@@ -143,31 +143,57 @@ function loadTex(id) {
 }
 
 // ─── Palette building ─────────────────────────────────────────────────────────
-// No more HEAD requests: we attempt texture loads lazily at render time.
-// buildPalette just filters BLOCKS by the user's chosen mode.
+// Blocks that look like full blocks in blocks.json but are unsuitable for
+// map art — semi-transparent, top-face irrelevant, or colour varies with context.
+const MAP_UNSAFE = new Set([
+  // Leaves — semi-transparent, colour varies with biome tint
+  "acacia_leaves","azalea_leaves","birch_leaves","cherry_leaves",
+  "dark_oak_leaves","flowering_azalea_leaves","jungle_leaves",
+  "mangrove_leaves","oak_leaves","pale_oak_leaves","spruce_leaves",
+  // Ice — transparent/translucent
+  "ice","blue_ice","packed_ice",
+  // Glass of any kind
+  "glass","tinted_glass",
+  "black_stained_glass","blue_stained_glass","brown_stained_glass",
+  "cyan_stained_glass","gray_stained_glass","green_stained_glass",
+  "light_blue_stained_glass","light_gray_stained_glass","lime_stained_glass",
+  "magenta_stained_glass","orange_stained_glass","pink_stained_glass",
+  "purple_stained_glass","red_stained_glass","white_stained_glass",
+  "yellow_stained_glass",
+  // Miscellaneous unsuitable
+  "slime_block","honey_block","nether_portal","barrier",
+  "honeycomb_block",
+]);
+
 async function buildPalette() {
   if (!BLOCKS) return;
   setStatus("Building palette…");
 
-  const mode           = elPaletteSelect?.value || "full_solid";
-  const incCreative    = !!elCreative?.checked;
-  const arr            = [];
+  const mode        = elPaletteSelect?.value || "map_safe";
+  const incCreative = !!elCreative?.checked;
+  const arr         = [];
 
   for (const [id, b] of Object.entries(BLOCKS)) {
     if (!b?.avg_lab) continue;
-    const tags  = b.tags       || {};
-    const flags = b.tag_flags  || {};
+    const tags  = b.tags      || {};
+    const flags = b.tag_flags || {};
 
     if (!incCreative && tags.creative_only) continue;
 
-    if (mode === "full_solid") {
+    if (mode === "map_safe") {
+      // Strictest: full opaque blocks only, no problematic materials
       if (flags.full_block !== true) continue;
-      if (tags.transparent || tags.noisy)  continue;
+      if (tags.transparent || tags.noisy) continue;
+      if (MAP_UNSAFE.has(id)) continue;
+    } else if (mode === "full_solid") {
+      // Full blocks, no transparent — but includes leaves/ice etc.
+      if (flags.full_block !== true) continue;
+      if (tags.transparent) continue;
     } else if (mode === "all_solid") {
-      if (flags.full_block !== true) continue;
-      if (tags.transparent)          continue;
+      // All solid blocks including non-full (slabs, stairs etc.)
+      if (tags.transparent) continue;
     }
-    // "everything": no extra filter
+    // "everything": no filter
 
     arr.push({ id, name: b.name || id, lab: b.avg_lab });
   }
