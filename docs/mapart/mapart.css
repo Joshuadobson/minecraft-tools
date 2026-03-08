@@ -595,3 +595,13 @@ select option { background: var(--surface2); }
   white-space: nowrap;
   border: 0;
 }
+
+/* ── Schematic export button ─────────────────────────────────────────────── */
+.schematic-btn {
+  border-color: rgba(74,222,128,.3) !important;
+  color: var(--accent) !important;
+}
+.schematic-btn:hover {
+  background: rgba(74,222,128,.08) !important;
+  border-color: var(--accent) !important;
+}
