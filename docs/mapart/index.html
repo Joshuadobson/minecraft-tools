@@ -150,9 +150,10 @@
         <div id="countsMeta" class="counts-meta">—</div>
 
         <div class="row gap-8 flex-wrap">
-          <button id="downloadPng"  class="btn secondary" disabled>↓ PNG</button>
-          <button id="downloadJson" class="btn secondary" disabled>↓ JSON</button>
-          <button id="downloadCsv"  class="btn secondary" disabled>↓ CSV</button>
+          <button id="downloadPng"      class="btn secondary" disabled>↓ PNG</button>
+          <button id="downloadJson"     class="btn secondary" disabled>↓ JSON</button>
+          <button id="downloadCsv"      class="btn secondary" disabled>↓ CSV</button>
+          <button id="downloadSchematic" class="btn secondary schematic-btn" disabled>↓ .litematic</button>
           <span class="spacer"></span>
           <button id="zoomOut"   class="btn icon secondary" title="Zoom out">−</button>
           <button id="zoomIn"    class="btn icon secondary" title="Zoom in">+</button>
@@ -212,7 +213,7 @@
 
   <script src="libs/cropper.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="mapart.js"></script>
+  <script type="module" src="mapart.js"></script>
 
   <!-- ── Crawlable content for Google (visually hidden) ── -->
   <section class="seo-content" aria-hidden="true">
